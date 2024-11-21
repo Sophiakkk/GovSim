@@ -2,7 +2,6 @@ import re
 import traceback
 import warnings
 from datetime import datetime
-import os
 
 import pathfinder
 from pathfinder import Model
@@ -25,27 +24,12 @@ class ModelWandbWrapper:
         self.render = render
         self.wanbd_logger = wanbd_logger
 
-        output_dir = os.path.join(os.getcwd(), "output")
-        os.makedirs(output_dir, exist_ok=True)
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"llm_conversation_{timestamp}.txt"
-        log_path = os.path.join(output_dir, log_filename)
-
-        self.output_file = open(log_path, "w", encoding="utf-8")
-        print(f"Logging LLM conversations to: {log_path}")
-
         self.agent_chain = None
         self.chain = None
         self.temperature = temperature
         self.top_p = top_p
         self.seed = seed
         self.is_api = is_api
-
-    def _log_and_print(self, message: str):
-        print(message)
-        self.output_file.write(message + "\n")
-        self.output_file.flush()
 
     def start_chain(
         self,
@@ -98,6 +82,7 @@ class ModelWandbWrapper:
         default_value="",
         *,
         max_tokens=1000,
+        # regex=None, TODO maybe
         stop_regex=None,
         save_stop_text=False,
         temperature=None,
@@ -105,10 +90,6 @@ class ModelWandbWrapper:
     ):
         start_time_ms = datetime.now().timestamp() * 1000
         prompt = previous_lm._current_prompt()
-
-        self._log_and_print(
-            f"\n=== PROMPT for {name} ===\n{prompt}\n==================\n"
-        )
 
         if temperature is None:
             temperature = self.temperature
@@ -126,9 +107,6 @@ class ModelWandbWrapper:
                 save_stop_text=save_stop_text,
             )
             res = lm[name]
-            self._log_and_print(
-                f"\n=== RESPONSE for {name} ===\n{res}\n==================\n"
-            )
         except Exception as e:
             warnings.warn(
                 f"An exception occured: {e}: {traceback.format_exc()}\nReturning default value in gen",
@@ -178,10 +156,6 @@ class ModelWandbWrapper:
         start_time_ms = datetime.now().timestamp() * 1000
         prompt = previous_lm._current_prompt()
 
-        self._log_and_print(
-            f"\n=== PROMPT for {name} ===\n{prompt}\n==================\n"
-        )
-
         if temperature is None:
             temperature = self.temperature
             top_p = self.top_p
@@ -198,9 +172,6 @@ class ModelWandbWrapper:
                 top_p=top_p,
             )
             res = lm[name]
-            self._log_and_print(
-                f"\n=== RESPONSE for {name} ===\n{res}\n==================\n"
-            )
         except Exception as e:
             warnings.warn(
                 f"An exception occured: {e}: {traceback.format_exc()}\nReturning default value in find",
@@ -288,7 +259,3 @@ class ModelWandbWrapper:
             )
             self.seed += 1
             return lm
-
-    def __del__(self):
-        if hasattr(self, "output_file"):
-            self.output_file.close()
